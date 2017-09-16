@@ -1,0 +1,91 @@
+            var me=this;
+        	  var layerJson={};
+        	  var token=null;
+        	  //获取含有shp文件的文件夹路径
+        	  var file="C://shp/";
+        	  //设置访问代理
+        	  esriConfig.defaults.io.proxyUrl = "http://"+window.location.host+"/resource-proxy/proxy.jsp";
+        	  esriConfig.defaults.io.alwaysUseProxy = false;
+        	  var dynamicUrl=RegistryDynamicService.url;
+        	  var serverUserName=RegistryServer.UserName;
+        	  var serverPassword=Password;
+        	  var serverUrl=RegistryServer.url;
+        	  var ip=FileUrl.url;
+        	  var clientIp=window.location.host;
+        	  //输入参数获取登录arcgis admin的token(*必须是POST请求)
+        	  var layersRequest2 =Request({
+                  url: serverUrl+"/generateToken",
+                  content: { 
+                      Username:serverUserName,
+					  Password:serverPassword,
+                      Client:"IP",
+					  IP:clientIp,
+                      f: "json"
+                  },
+                  handleAs: "json",
+                  callbackParamName: "callback"
+        	  },{usePost:true});
+        	  layersRequest2.then(function(response) {
+        		  token=response.token;
+        		  //获取服务的Service信息
+        		  var layersRequest1=Request({
+                      url: dynamicUrl+"?token="+response.token,
+                      content: {
+                          f: "json"
+                      },
+                      handleAs: "json",
+                      callbackParamName: "callback"
+            	  	},{usePost:true});
+            	  layersRequest1.then(function(response){
+            		    var layersRequest
+            		    var isRegistry=false;
+            		   //动态注册动态图层文件夹
+            		    for(var i=0;i<file.length;i++){
+            		        var dynamicFile={};
+                		    dynamicFile.workspaceFactory="Shapefile";
+                		    dynamicFile.id=file[i].workspaceId;
+                		    //var ip=window.location.host.substring(0,window.location.host.indexOf(":"));
+                		    //var ip="192.9.30.54";
+                		    dynamicFile.workspaceConnection="DATABASE=\\\\"+ip+"\\"+file[i].filePath;
+                		    layerJson=response;
+                			var dynamicLayer=layerJson.properties.dynamicDataWorkspaces;
+                			dynamicLayer=JSON.parse(dynamicLayer);
+                			//判断文件夹是否已经被注册
+                			
+                			var str=file[i].workspaceId;
+                			for(var i=0;i<dynamicLayer.length;i++){
+                				var _dynLayer=dynamicLayer[i];
+                				if(_dynLayer.id.indexOf(str)!=-1){
+                					isRegistry=true;
+                				}
+                				
+                			}
+                			if(!isRegistry){
+                				dynamicLayer.push(dynamicFile);
+                    			layerJson.properties.dynamicDataWorkspaces=JSON.stringify(dynamicLayer);
+                    			layerJson=JSON.stringify(layerJson);
+
+                			}
+            		    }
+            		    if(!isRegistry){
+            		       layersRequest =Request({
+                                 url: dynamicUrl+"/edit?token="+token,
+                                 content: {
+                                     Service:layerJson,
+                                     f: "json"
+                                 },
+                                 handleAs: "json",
+                                 callbackParamName: "callback"
+                 			},{usePost:true});
+                 		    layersRequest.then(function(response) {
+                		         
+                 		    },function(error){
+                 		    console.log("Error: ", error.message);
+                 		    });
+            		    	
+            		    }
+            		   
+            		
+            			
+            	  	});
+        	  });
